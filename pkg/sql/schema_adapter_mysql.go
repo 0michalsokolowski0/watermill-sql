@@ -41,7 +41,7 @@ type DefaultMySQLSchema struct {
 
 func (s DefaultMySQLSchema) SchemaInitializingQueries(topic string) []string {
 	createMessagesTable := strings.Join([]string{
-		"CREATE TABLE IF NOT EXISTS " + s.MessagesTable(topic) + " (",
+		"CREATE TABLE IF NOT EXISTS " + withBackTic(s.MessagesTable(topic)) + " (",
 		"`offset` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,",
 		"`uuid` VARCHAR(36) NOT NULL,",
 		"`created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,",
@@ -56,7 +56,7 @@ func (s DefaultMySQLSchema) SchemaInitializingQueries(topic string) []string {
 func (s DefaultMySQLSchema) InsertQuery(topic string, msgs message.Messages) (string, []interface{}, error) {
 	insertQuery := fmt.Sprintf(
 		`INSERT INTO %s (uuid, payload, metadata) VALUES %s`,
-		s.MessagesTable(topic),
+		withBackTic(s.MessagesTable(topic)),
 		strings.TrimRight(strings.Repeat(`(?,?,?),`, len(msgs)), ","),
 	)
 
@@ -71,7 +71,7 @@ func (s DefaultMySQLSchema) InsertQuery(topic string, msgs message.Messages) (st
 func (s DefaultMySQLSchema) SelectQuery(topic string, consumerGroup string, offsetsAdapter OffsetsAdapter) (string, []interface{}) {
 	nextOffsetQuery, nextOffsetArgs := offsetsAdapter.NextOffsetQuery(topic, consumerGroup)
 	selectQuery := `
-		SELECT offset, uuid, payload, metadata FROM ` + s.MessagesTable(topic) + `
+		SELECT offset, uuid, payload, metadata FROM ` + withBackTic(s.MessagesTable(topic)) + `
 		WHERE 
 			offset > (` + nextOffsetQuery + `)
 		ORDER BY 
@@ -89,5 +89,10 @@ func (s DefaultMySQLSchema) MessagesTable(topic string) string {
 	if s.GenerateMessagesTableName != nil {
 		return s.GenerateMessagesTableName(topic)
 	}
-	return fmt.Sprintf("`watermill_%s`", topic)
+	// IMHO the starting and tailing ` should not be added here
+	return fmt.Sprintf("watermill_%s", topic)
+}
+
+func withBackTic(s string) string {
+	return fmt.Sprintf("`%s`", s)
 }

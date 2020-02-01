@@ -25,6 +25,9 @@ type SchemaAdapter interface {
 	// SchemaInitializingQueries returns SQL queries which will make sure (CREATE IF NOT EXISTS)
 	// that the appropriate tables exist to write messages to the given topic.
 	SchemaInitializingQueries(topic string) []string
+
+	// Added temporarily until there is a better solution found
+	MessagesTable(topic string) string
 }
 
 // Deprecated: Use DefaultMySQLSchema instead.
