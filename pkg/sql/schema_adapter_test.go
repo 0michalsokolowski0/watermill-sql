@@ -24,14 +24,23 @@ func TestDefaultMySQLSchema(t *testing.T) {
 	}, logger)
 	require.NoError(t, err)
 
-	subscriber, err := sql.NewSubscriber(db, sql.SubscriberConfig{
+	subscriber, err := sql.NewBinlogSubscriber(db, sql.SubscriberConfig{
 		SchemaAdapter:    sql.DefaultMySQLSchema{},
 		OffsetsAdapter:   sql.DefaultMySQLOffsetsAdapter{},
 		InitializeSchema: true,
 	}, logger)
 	require.NoError(t, err)
 
+	topic := "test_" + watermill.NewULID()
+
+	_, err = subscriber.Subscribe(context.Background(), topic)
+	require.NoError(t, err)
+
 	testOneMessage(t, publisher, subscriber)
+
+	// TODO
+	// 1. Make this test pass
+	// 2. Extract data from OnRow
 }
 
 // TestDefaultPostgreSQLSchema checks if the SQL schema defined in DefaultPostgreSQLSchema is correctly executed
@@ -61,7 +70,7 @@ func testOneMessage(t *testing.T, publisher message.Publisher, subscriber messag
 	messages, err := subscriber.Subscribe(context.Background(), topic)
 	require.NoError(t, err)
 
-	msg := message.NewMessage(watermill.NewULID(), []byte(`{"json": "field"}`))
+	msg := message.NewMessage(watermill.NewULID(), []byte(`{"json":"field"}`))
 	err = publisher.Publish(topic, msg)
 	require.NoError(t, err)
 
@@ -86,7 +95,7 @@ func (s *testMySQLSchema) SchemaInitializingQueries(topic string) []string {
 		"CREATE TABLE IF NOT EXISTS " + s.MessagesTable(topic) + " (",
 		"`offset` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,",
 		"`uuid` VARCHAR(255) NOT NULL,",
-		"`payload` VARBINARY(255) DEFAULT NULL,",
+		"`payload` JSON DEFAULT NULL,",
 		"`metadata` JSON DEFAULT NULL",
 		");",
 	}, "\n")
@@ -103,7 +112,7 @@ func (s *testPostgreSQLSchema) SchemaInitializingQueries(topic string) []string 
 		"CREATE TABLE IF NOT EXISTS " + s.MessagesTable(topic) + " (",
 		`"offset" SERIAL,`,
 		`"uuid" VARCHAR(255) NOT NULL,`,
-		`"payload" bytea DEFAULT NULL,`,
+		`"payload" byte DEFAULT NULL,`,
 		`"metadata" JSON DEFAULT NULL`,
 		`);`,
 	}, "\n")
